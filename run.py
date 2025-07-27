@@ -33,23 +33,26 @@ def download_youtube():
             print(Fore.RED + "❌ Masukkan URL lengkap, bukan versi pendek.")
             return
         yt = YouTube(url)
-        print(Fore.YELLOW + f"\n🎬 Judul   : {yt.title}")
-        print(Fore.YELLOW + f"📺 Channel : {yt.author}")
-        print(Fore.YELLOW + f"👁️ Views   : {yt.views:,}")
-        print(Fore.YELLOW + f"📅 Upload  : {yt.publish_date}")
-        print(Fore.YELLOW + f"⏱️ Durasi  : {yt.length} detik")
+        title = yt.title.strip()
+        author = yt.author
+        views = yt.views
+
+        print(Fore.YELLOW + f"\n📝 Caption : {title[:100]}{'...' if len(title) > 100 else ''}")
+        print(Fore.YELLOW + f"👤 Author  : {author}")
+        print(Fore.YELLOW + f"❤️ Likes   : Tidak tersedia")  # Pytube tidak support likes
+        print(Fore.YELLOW + f"👁️ Views   : {views:,}")
 
         print(Fore.CYAN + "\n[1] Video\n[2] Audio (MP3)")
         opt = input("Pilih opsi: ")
 
         if opt == "1":
             yt.streams.get_highest_resolution().download(output_path=SAVE_PATH)
-            print(Fore.GREEN + "✅ Video diunduh.")
+            print(Fore.GREEN + "✅ YouTube berhasil diunduh.")
         elif opt == "2":
             stream = yt.streams.filter(only_audio=True).first()
             out = stream.download(output_path=SAVE_PATH)
             os.rename(out, out.replace(".mp4", ".mp3"))
-            print(Fore.GREEN + "✅ Audio diunduh.")
+            print(Fore.GREEN + "✅ YouTube audio berhasil diunduh.")
         else:
             print(Fore.RED + "❌ Opsi tidak dikenal.")
     except Exception as e:
@@ -63,11 +66,19 @@ def download_instagram():
             print(Fore.RED + "❌ URL tidak valid.")
             return
         shortcode = url.split("/")[-2]
-        loader = instaloader.Instaloader(dirname_pattern=SAVE_PATH)
+        loader = instaloader.Instaloader(dirname_pattern=SAVE_PATH, download_comments=False, save_metadata=False)
         post = instaloader.Post.from_shortcode(loader.context, shortcode)
-        print(Fore.YELLOW + f"\n🎬 Caption  : {post.caption[:100]}...")
-        print(Fore.YELLOW + f"❤️ Likes    : {post.likes}")
-        print(Fore.YELLOW + f"👁️ Views    : {post.video_view_count or 'N/A'}")
+
+        caption = post.caption or "Tidak ada caption"
+        author = post.owner_username
+        likes = post.likes
+        views = post.video_view_count or "Tidak tersedia"
+
+        print(Fore.YELLOW + f"\n📝 Caption : {caption[:100]}{'...' if len(caption) > 100 else ''}")
+        print(Fore.YELLOW + f"👤 Author  : {author}")
+        print(Fore.YELLOW + f"❤️ Likes   : {likes}")
+        print(Fore.YELLOW + f"👁️ Views   : {views}")
+
         loader.download_post(post, target="instagram_post")
         print(Fore.GREEN + "✅ Instagram berhasil diunduh.")
     except Exception as e:
@@ -80,18 +91,29 @@ def download_tiktok():
         if not url.startswith("http"):
             print(Fore.RED + "❌ URL tidak valid.")
             return
+
         lookup = requests.post("https://api.tikmate.app/api/lookup", data={"url": url}).json()
-        if not lookup.get("token"):
-            raise Exception("Token gagal diambil")
+
+        if 'token' not in lookup:
+            raise Exception("❌ Gagal ambil data dari TikTok.")
+
+        caption = lookup.get("text", "Tidak ada caption").strip()
+        author = lookup.get("author_name", "Tidak diketahui")
+        likes = lookup.get("likes", 0)
+        views = lookup.get("plays", 0)
+
+        print(Fore.YELLOW + f"\n📝 Caption : {caption[:100]}{'...' if len(caption) > 100 else ''}")
+        print(Fore.YELLOW + f"👤 Author  : {author}")
+        print(Fore.YELLOW + f"❤️ Likes   : {likes}")
+        print(Fore.YELLOW + f"👁️ Views   : {views}")
+
         video_url = f"https://tikmate.app/download/{lookup['token']}/{lookup['id']}.mp4"
-        print(Fore.YELLOW + f"\n🎬 Judul   : {lookup['text']}")
-        print(Fore.YELLOW + f"👁️ Views   : {lookup['plays']}")
-        print(Fore.YELLOW + f"❤️ Likes   : {lookup['likes']}")
         r = requests.get(video_url)
         file_path = os.path.join(SAVE_PATH, "tiktok_video.mp4")
         with open(file_path, "wb") as f:
             f.write(r.content)
-        print(Fore.GREEN + "✅ Video TikTok berhasil diunduh.")
+
+        print(Fore.GREEN + "✅ TikTok berhasil diunduh.")
     except Exception as e:
         print(Fore.RED + f"❌ Gagal: {e}")
 
